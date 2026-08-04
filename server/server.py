@@ -28,7 +28,7 @@ from emailutil import format_size, truncate  # noqa: E402
 from mcp_stdio import MCPServer, ToolError  # noqa: E402
 from oauth_ms import AuthError, token_status  # noqa: E402
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # Every exception type a backend can plausibly raise. imaplib and smtplib
 # exceptions are included because a server answering BAD surfaces as

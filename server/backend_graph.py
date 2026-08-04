@@ -29,6 +29,12 @@ from emailutil import (
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 
+# Graph's simple attachments endpoint rejects payloads over 3 MB; bigger files
+# go through an upload session in chunks that must be multiples of 320 KiB.
+_SIMPLE_ATTACH_MAX = 3 * 1024 * 1024
+_UPLOAD_CHUNK = 10 * 327_680  # 3.125 MiB per PUT
+_UPLOAD_SESSION_MAX = 150 * 1024 * 1024
+
 WELL_KNOWN = {
     "inbox": "inbox",
     "drafts": "drafts",
@@ -561,12 +567,14 @@ class GraphBackend:
         if not os.path.isfile(path):
             raise GraphError(f"Attachment not found: {path}")
         size = os.path.getsize(path)
-        if size > 3 * 1024 * 1024:
+        if size > _UPLOAD_SESSION_MAX:
             raise GraphError(
-                f"Attachment '{os.path.basename(path)}' is {size // 1024 // 1024} MB. "
-                "Files over 3 MB need Graph's upload-session API, which this server "
-                "does not implement yet — send it another way."
+                f"Attachment '{os.path.basename(path)}' is {size // 1024 // 1024} MB; "
+                "Microsoft Graph caps attachments at 150 MB."
             )
+        if size > _SIMPLE_ATTACH_MAX:
+            self._attach_large(message_id, path, size)
+            return
         with open(path, "rb") as fh:
             data = fh.read()
         self._request(
@@ -578,6 +586,72 @@ class GraphBackend:
                 "contentBytes": base64.b64encode(data).decode("ascii"),
             },
         )
+
+    def _attach_large(self, message_id: str, path: str, size: int) -> None:
+        """Upload one >3 MB attachment through a Graph upload session.
+
+        The simple attachments endpoint rejects payloads over 3 MB; larger
+        files must go through createUploadSession + chunked PUTs where every
+        chunk except the last is a multiple of 320 KiB.
+        """
+        session = self._request(
+            "POST",
+            f"/me/messages/{_qid(message_id)}/attachments/createUploadSession",
+            body={
+                "AttachmentItem": {
+                    "attachmentType": "file",
+                    "name": os.path.basename(path),
+                    "size": size,
+                }
+            },
+        )
+        upload_url = session.get("uploadUrl")
+        if not upload_url:
+            raise GraphError("Graph did not return an uploadUrl for the attachment.")
+
+        sent = 0
+        with open(path, "rb") as fh:
+            while sent < size:
+                chunk = fh.read(_UPLOAD_CHUNK)
+                if not chunk:
+                    raise GraphError(
+                        f"Attachment '{os.path.basename(path)}' shrank while uploading."
+                    )
+                self._put_chunk(upload_url, chunk, sent, size)
+                sent += len(chunk)
+
+    @staticmethod
+    def _put_chunk(upload_url: str, chunk: bytes, offset: int, total: int) -> None:
+        # The uploadUrl is pre-authenticated: no Authorization header, and it
+        # lives on a different host than graph.microsoft.com.
+        headers = {
+            "Content-Length": str(len(chunk)),
+            "Content-Range": f"bytes {offset}-{offset + len(chunk) - 1}/{total}",
+        }
+        for attempt in range(4):
+            req = urllib.request.Request(upload_url, data=chunk, headers=headers, method="PUT")
+            try:
+                with urllib.request.urlopen(req, timeout=300):
+                    return
+            except urllib.error.HTTPError as exc:
+                text = exc.read().decode("utf-8", "replace")
+                if exc.code in (429, 500, 502, 503, 504) and attempt < 3:
+                    try:
+                        delay = int(exc.headers.get("Retry-After") or (2 ** attempt))
+                    except (TypeError, ValueError):
+                        delay = 2 ** attempt
+                    time.sleep(min(delay, 30))
+                    continue
+                raise GraphError(
+                    f"Chunk upload failed at byte {offset} (HTTP {exc.code}): {text[:300]}"
+                ) from exc
+            except urllib.error.URLError as exc:
+                if attempt < 3:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise GraphError(
+                    f"Network error during chunk upload at byte {offset}: {exc.reason}"
+                ) from exc
 
     def send(
         self,
