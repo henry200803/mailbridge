@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 — 2026-08-04
+
+- **New**: Microsoft Graph attachments over 3 MB now upload through chunked
+  upload sessions (320 KiB-aligned chunks, per-chunk retry), raising the limit
+  from 3 MB to Graph's 150 MB cap. IMAP providers were never affected.
+
 ## 1.1.0 — 2026-08-04
 
 - **Bilingual**: tool descriptions, server instructions, setup wizard and
