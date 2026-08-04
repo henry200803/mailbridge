@@ -1,6 +1,6 @@
 {
   "name": "mailbridge",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A full email client for AI agents — Claude, Codex, Cursor or any MCP client: search, read, draft, send, organise and export mail across iCloud, Outlook.com, work/school Exchange, Gmail, QQ and any IMAP mailbox. Credentials stay on your own machine.",
   "author": {
     "name": "Sibo Huang"
