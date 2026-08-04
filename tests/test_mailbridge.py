@@ -750,6 +750,85 @@ class TestGraphQueryBuilding(unittest.TestCase):
                 self.assertIn(key, known, f"unknown OData option {key}")
 
 
+class TestGraphUploadSession(unittest.TestCase):
+    """>3 MB Graph attachments must go through chunked upload sessions."""
+
+    def setUp(self):
+        import backend_graph
+        from config import Account
+
+        self.backend_graph = backend_graph
+        self.backend = backend_graph.GraphBackend(Account({
+            "name": "outlook", "kind": "graph", "email": "me@outlook.com",
+            "client_id": "cid", "tenant": "consumers",
+        }))
+
+    def test_large_attachment_uses_chunked_upload(self):
+        calls, puts = [], []
+
+        def fake_request(method, path, body=None, params=None, raw_response=False):
+            calls.append({"method": method, "path": path, "body": body})
+            return {"uploadUrl": "https://upload.example/session1"}
+
+        def fake_put(upload_url, chunk, offset, total):
+            puts.append({"url": upload_url, "len": len(chunk),
+                         "offset": offset, "total": total})
+
+        self.backend._request = fake_request
+        self.backend._put_chunk = fake_put
+
+        size = 7 * 1024 * 1024 + 123
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "big.bin")
+            with open(path, "wb") as fh:
+                fh.write(b"\x5a" * size)
+            self.backend._attach("MSG", path)
+
+        create = calls[-1]
+        self.assertIn("createUploadSession", create["path"])
+        self.assertEqual(create["body"]["AttachmentItem"]["size"], size)
+
+        # Chunks must be contiguous, cover the file exactly, and every chunk
+        # except the last must be a multiple of 320 KiB (Graph requirement).
+        self.assertGreater(len(puts), 1)
+        expected_offset = 0
+        for i, put in enumerate(puts):
+            self.assertEqual(put["offset"], expected_offset)
+            self.assertEqual(put["total"], size)
+            if i < len(puts) - 1:
+                self.assertEqual(put["len"] % 327_680, 0)
+            expected_offset += put["len"]
+        self.assertEqual(expected_offset, size)
+
+    def test_small_attachment_stays_on_simple_path(self):
+        calls = []
+
+        def fake_request(method, path, body=None, params=None, raw_response=False):
+            calls.append({"path": path})
+            return {}
+
+        self.backend._request = fake_request
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "small.txt")
+            with open(path, "wb") as fh:
+                fh.write(b"x" * 1024)
+            self.backend._attach("MSG", path)
+        self.assertNotIn("createUploadSession", calls[-1]["path"])
+
+    def test_oversize_attachment_is_refused(self):
+        real = self.backend_graph._UPLOAD_SESSION_MAX
+        self.backend_graph._UPLOAD_SESSION_MAX = 1024
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                path = os.path.join(tmp, "huge.bin")
+                with open(path, "wb") as fh:
+                    fh.write(b"x" * 2048)
+                with self.assertRaises(self.backend_graph.GraphError):
+                    self.backend._attach("MSG", path)
+        finally:
+            self.backend_graph._UPLOAD_SESSION_MAX = real
+
+
 class TestBundledCredentials(unittest.TestCase):
     """The cloud/portable fallback: a .mailbridge/ dir shipped in the bundle."""
 
