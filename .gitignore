@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.zip
+.mailbridge/
+accounts.json
+tokens/
+.DS_Store
