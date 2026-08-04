@@ -116,7 +116,7 @@ python server/setup.py lang zh   # 或：lang en
 
 ## 已知限制
 
-- Graph 发送超过 3 MB 的附件会被拒绝（未实现 upload-session API）。
+- Graph（Outlook/Exchange）附件通过分块上传会话最大支持 150 MB；服务商的整封邮件大小上限仍然适用——IMAP 服务商同理（一般每封 20–50 MB）。
 - IMAP 全文搜索在服务器端执行；部分服务商（尤其 QQ）对非 ASCII 关键词会静默返回空——请改用发件人或日期过滤。
 - IMAP 上的 `mail_get_thread` 按规范化主题匹配而非真实会话头；Graph 账号使用真实会话 id。
 - 多数大学会拦截未经 IT 批准的第三方应用（Entra 注册需管理员同意）——这是租户策略，mailbridge 无法绕过。

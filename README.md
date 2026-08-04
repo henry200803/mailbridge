@@ -116,7 +116,7 @@ so a bundle with baked-in credentials still defers to the local config on your o
 
 ## Known limits
 
-- Graph attachments larger than 3 MB are refused on send (upload-session API not implemented).
+- Graph (Outlook/Exchange) attachments are supported up to 150 MB via chunked upload sessions; the provider's total-message-size limit still applies, as it does on every IMAP provider (typically 20–50 MB per message).
 - IMAP full-text search is server-side; some providers (notably QQ) silently return nothing for non-ASCII search terms — filter by sender or date instead.
 - `mail_get_thread` on IMAP matches normalised subjects rather than true threading headers; Graph accounts use real conversation ids.
 - Most universities block third-party apps until IT approves the Entra registration — that is tenant policy, not something mailbridge can route around.
