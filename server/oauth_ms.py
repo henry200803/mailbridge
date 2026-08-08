@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import stat
 import time
 import urllib.error
@@ -38,17 +39,25 @@ def _post_form(url: str, fields: Dict[str, str]) -> Dict[str, Any]:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", "replace")
+    # Microsoft occasionally accepts the form but the client times out while
+    # waiting for its response.  A short retry avoids making the user repeat a
+    # complete browser sign-in for a transient network failure.
+    for attempt in range(3):
         try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            raise AuthError(f"HTTP {exc.code} from Microsoft: {raw[:500]}") from exc
-    except urllib.error.URLError as exc:
-        raise AuthError(f"Could not reach Microsoft login endpoint: {exc.reason}") from exc
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode("utf-8", "replace")
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                raise AuthError(f"HTTP {exc.code} from Microsoft: {raw[:500]}") from exc
+        except (TimeoutError, socket.timeout) as exc:
+            if attempt == 2:
+                raise AuthError("Microsoft login endpoint timed out after retries.") from exc
+            time.sleep(2 * (attempt + 1))
+        except urllib.error.URLError as exc:
+            raise AuthError(f"Could not reach Microsoft login endpoint: {exc.reason}") from exc
 
 
 def _token_url(tenant: str) -> str:

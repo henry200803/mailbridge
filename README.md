@@ -107,6 +107,23 @@ so a bundle with baked-in credentials still defers to the local config on your o
 
 > ⚠️ A bundle containing credentials **is a secret** — never publish or share it. If one leaks, app passwords and the Entra registration are individually revocable.
 
+### Reuse every authorization on another computer
+
+Run the script to create an AES-256-GCM encrypted bundle. The password is hidden and never enters shell history:
+
+```bash
+python -m pip install cryptography
+python server/credential_bundle.py export mailbridge-credentials.mbvault
+```
+
+Copy the `.mbvault` file to the other computer and run:
+
+```bash
+python server/credential_bundle.py import mailbridge-credentials.mbvault
+```
+
+Existing credentials are overwritten only with `--replace`. Git ignores `.mbvault`; still keep it in private storage and transfer its password separately.
+
 ## Security
 
 - Credentials live **only** in `~/.mailbridge/accounts.json` (mode 0600) on the machine running the server. Nothing is transmitted anywhere except to your mail provider.

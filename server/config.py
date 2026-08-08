@@ -167,7 +167,6 @@ GRAPH_SCOPES = [
     "offline_access",
     "User.Read",
     "Mail.ReadWrite",
-    "Mail.Send",
 ]
 
 

@@ -107,6 +107,23 @@ python server/setup.py lang zh   # 或：lang en
 
 > ⚠️ 含凭据的包**就是机密文件**——绝不要发布或分享。万一泄露，应用专用密码和 Entra 注册都可以单独吊销。
 
+### 在其他电脑复用全部授权
+
+运行脚本生成 AES-256-GCM 加密授权包。密码在终端隐藏输入，不会进入命令历史：
+
+```bash
+python -m pip install cryptography
+python server/credential_bundle.py export mailbridge-credentials.mbvault
+```
+
+把 `.mbvault` 文件复制到另一台电脑，在 mailbridge 目录运行：
+
+```bash
+python server/credential_bundle.py import mailbridge-credentials.mbvault
+```
+
+已有配置只有添加 `--replace` 才会覆盖。Git 会忽略 `.mbvault`；仍建议把加密包放在私有存储，并通过另一渠道传递密码。
+
 ## 安全
 
 - 凭据**只**保存在运行 server 那台机器的 `~/.mailbridge/accounts.json`（权限 0600），除了你的邮件服务商之外不会发往任何地方。
