@@ -134,8 +134,10 @@ _ZH_TOOLS: Dict[str, str] = {
         "倒序。用返回的 `id` 配合 mail_get_message 读取全文。"
     ),
     "mail_get_message": (
-        "读取一封邮件的完整内容：头信息、解码后的正文和附件列表。HTML 邮件会转换为"
-        "可读纯文本。"
+        "读取一封邮件的常规字段、解码后的正文和附件列表。authentication_headers 仅包含"
+        " Authentication-Results、ARC-Authentication-Results、Received-SPF 和"
+        " DKIM-Signature；每个存在的字段对应按原顺序排列、已安全展开的值列表，不返回"
+        "其他原始头信息。HTML 邮件会转换为可读纯文本。"
     ),
     "mail_get_thread": (
         "获取一封邮件所在的完整会话，按时间从旧到新。Graph 账号使用真实会话 id；"

@@ -9,6 +9,30 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 _WS = re.compile(r"[ \t\r\n]+")
+_HEADER_WS = re.compile(r"[\x00-\x20\x7f]+")
+
+# Only these authentication fields may leave a backend as raw header values.
+AUTHENTICATION_HEADER_NAMES = (
+    "Authentication-Results",
+    "ARC-Authentication-Results",
+    "Received-SPF",
+    "DKIM-Signature",
+)
+_AUTHENTICATION_HEADER_NAMES = {
+    name.lower(): name for name in AUTHENTICATION_HEADER_NAMES
+}
+
+
+def authentication_headers(pairs: Any) -> Dict[str, List[str]]:
+    """Return allowlisted header values, unfolded and in their original order."""
+    out: Dict[str, List[str]] = {}
+    for name, value in pairs:
+        if not isinstance(name, str) or not isinstance(value, str):
+            continue
+        canonical = _AUTHENTICATION_HEADER_NAMES.get(name.lower())
+        if canonical:
+            out.setdefault(canonical, []).append(_HEADER_WS.sub(" ", value).strip())
+    return out
 
 
 def decode_header_value(raw: Optional[str]) -> str:

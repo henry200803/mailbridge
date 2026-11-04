@@ -306,8 +306,11 @@ def mail_search(
 
 @server.tool(
     "mail_get_message",
-    "Read one message in full: headers, decoded body text, and the list of "
-    "attachments. HTML mail is converted to readable plain text.",
+    "Read one message: standard message fields, decoded body text, attachments, "
+    "and authentication_headers. That field maps Authentication-Results, "
+    "ARC-Authentication-Results, Received-SPF, and DKIM-Signature to ordered "
+    "lists of unfolded values when present; it does not contain other raw "
+    "headers. HTML mail is converted to readable plain text.",
     {
         "type": "object",
         "properties": {
@@ -330,7 +333,7 @@ def mail_get_message(
     message_id: str, account: Optional[str] = None, max_body_chars: int = 8000
 ) -> Dict[str, Any]:
     backend = backend_for(account)
-    msg = wrap(backend.get_message, message_id, include_body=True)
+    msg = wrap(backend.get_message, message_id, include_body=True, include_auth_headers=True)
     body = msg.pop("body", "") or ""
     trimmed = truncate(body, max_body_chars)
     msg["body"] = trimmed["text"]
