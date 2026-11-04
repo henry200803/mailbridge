@@ -75,7 +75,7 @@ Follow the step-by-step guide — **[Registering a Microsoft app for mailbridge]
 | `mail_list_accounts` | What mailboxes exist and whether they work |
 | `mail_list_folders` | Folder tree with unread/total counts |
 | `mail_search` | Filterable search across one or all accounts |
-| `mail_get_message` | One message in full, HTML converted to text |
+| `mail_get_message` | One message with decoded body, attachments, and allowlisted authentication headers |
 | `mail_get_thread` | The whole conversation |
 | `mail_digest` | Cross-account unread review in one call |
 | `mail_download_attachment` | Save an attachment to disk |
@@ -86,6 +86,14 @@ Follow the step-by-step guide — **[Registering a Microsoft app for mailbridge]
 | `mail_move` | File messages into a folder |
 | `mail_delete` | To Trash by default; permanent needs `confirm=true` |
 | `mail_auth_status` | OAuth health for Microsoft accounts |
+
+`mail_get_message` includes `authentication_headers`, an object whose present keys are
+`Authentication-Results`, `ARC-Authentication-Results`, `Received-SPF`, and
+`DKIM-Signature`. Each key maps to an array of values in message order; folded
+whitespace is normalized to spaces. A missing key means that header was absent,
+and an empty object means none of the four was available. No other raw headers
+are returned. These are message header claims, not an independent verification
+by mailbridge. IMAP and Microsoft Graph are supported.
 
 ## Bilingual 🇬🇧🇨🇳
 

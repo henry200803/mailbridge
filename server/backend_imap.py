@@ -23,6 +23,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import imap_utf7
 from config import Account, ConfigError
 from emailutil import (
+    authentication_headers,
     decode_header_value,
     html_to_text,
     iso_to_datetime,
@@ -416,7 +417,8 @@ class ImapBackend:
     # ------------------------------------------------------------- read one
 
     def get_message(
-        self, message_id: str, include_body: bool = True, max_body_chars: int = 8000
+        self, message_id: str, include_body: bool = True, max_body_chars: int = 8000,
+        include_auth_headers: bool = False,
     ) -> Dict[str, Any]:
         folder, uid = split_id(message_id)
         folder = self._resolve_folder(folder)
@@ -437,6 +439,8 @@ class ImapBackend:
         msg = email.message_from_bytes(raw)
         flags = _flags_from(data)
         result = _message_from_email(msg, folder, uid, self.account.name, flags)
+        if include_auth_headers:
+            result["authentication_headers"] = authentication_headers(msg.items())
         result["size"] = len(raw)
         if include_body:
             body = _extract_body(msg)

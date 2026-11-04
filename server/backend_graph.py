@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 import oauth_ms
 from config import Account
 from emailutil import (
+    authentication_headers,
     html_to_text,
     iso_to_datetime,
     make_snippet,
@@ -344,13 +345,22 @@ class GraphBackend:
     # ------------------------------------------------------------ read one
 
     def get_message(
-        self, message_id: str, include_body: bool = True, max_body_chars: int = 8000
+        self, message_id: str, include_body: bool = True, max_body_chars: int = 8000,
+        include_auth_headers: bool = False,
     ) -> Dict[str, Any]:
         select = SUMMARY_SELECT + (",body,bccRecipients,replyTo" if include_body else "")
+        if include_auth_headers:
+            select += ",internetMessageHeaders"
         msg = self._request(
             "GET", f"/me/messages/{_qid(message_id)}", params={"$select": select}
         )
         out = self._summary(msg)
+        if include_auth_headers:
+            out["authentication_headers"] = authentication_headers(
+                (header.get("name"), header.get("value"))
+                for header in msg.get("internetMessageHeaders") or []
+                if isinstance(header, dict)
+            )
         out["bcc"] = _addresses(msg.get("bccRecipients"))
         if include_body:
             body = msg.get("body") or {}

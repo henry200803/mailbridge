@@ -75,7 +75,7 @@ Microsoft 已停用基于密码的 IMAP/SMTP，因此 Outlook.com / Hotmail 和�
 | `mail_list_accounts` | 有哪些邮箱、是否工作正常 |
 | `mail_list_folders` | 文件夹树及未读/总数统计 |
 | `mail_search` | 单账号或全账号的组合条件搜索 |
-| `mail_get_message` | 读取整封邮件，HTML 转纯文本 |
+| `mail_get_message` | 读取正文、附件及限定的邮件认证头信息，HTML 转纯文本 |
 | `mail_get_thread` | 整个会话 |
 | `mail_digest` | 一次调用完成跨账号未读盘点 |
 | `mail_download_attachment` | 下载附件到磁盘 |
@@ -86,6 +86,13 @@ Microsoft 已停用基于密码的 IMAP/SMTP，因此 Outlook.com / Hotmail 和�
 | `mail_move` | 移动邮件到文件夹 |
 | `mail_delete` | 默认进回收站；彻底删除需 `confirm=true` |
 | `mail_auth_status` | Microsoft 账号的 OAuth 健康状态 |
+
+`mail_get_message` 的 `authentication_headers` 是一个对象，只可能包含
+`Authentication-Results`、`ARC-Authentication-Results`、`Received-SPF` 和
+`DKIM-Signature`。每个存在的字段对应一个按邮件原顺序排列的值列表；折行空白会规范化为
+空格。缺少某个键表示该头信息不存在，空对象表示四种头信息均不可用。不会返回其他原始
+头信息。这些值只是邮件中的声明，不代表 mailbridge 独立完成了验证。IMAP 和 Microsoft
+Graph 均受支持。
 
 ## 中英双语 🇬🇧🇨🇳
 
